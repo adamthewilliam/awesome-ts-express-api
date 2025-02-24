@@ -4,14 +4,20 @@
   "description": "An awesome implementation of a Typescript Node.js Express API with BullMQ message queues",
   "main": "index.js",
   "scripts": {
-    "build": "rimraf dist && npx tsc",
-    "prestart": "npm run build",
+    "build": "rimraf dist && tsc",
     "start": "node dist/index.js",
-    "preserve": "npm run build",
-    "serve": "concurrently \"npx tsc -w\"  \"nodemon dist/index.js\"",
+    "start:prod": "NODE_ENV=production node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "lint": "biome lint ./src",
+    "lint:fix": "biome lint --apply ./src",
+    "format": "biome format ./src",
+    "format:check": "biome format --check ./src",
+    "check": "biome check ./src",
+    "check:apply": "biome check --apply ./src",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
@@ -29,6 +35,7 @@
     "typeorm": "^0.3.20"
   },
   "devDependencies": {
+    "@biomejs/biome": "1.9.4",
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.5",
     "@types/supertest": "^6.0.2",
