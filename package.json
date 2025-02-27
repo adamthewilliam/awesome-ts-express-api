@@ -1,0 +1,13 @@
+{
+  "name": "awesome-ts-express-api",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev:api": "npm run dev --workspace=packages/api",
+    "dev:worker": "npm run start --workspace=packages/worker"
+  }
+}

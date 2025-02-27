@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "An awesome implementation of a Typescript Node.js Express API with BullMQ message queues",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "build": "rimraf dist && tsc",
+    "build": "npx rimraf dist && tsc",
     "start": "node dist/index.js",
     "start:prod": "NODE_ENV=production node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
@@ -30,9 +31,11 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.13.3",
+    "reflect-metadata": "^0.2.2",
     "routing-controllers": "^0.11.1",
     "typedi": "^0.10.0",
-    "typeorm": "^0.3.20"
+    "typeorm": "^0.3.20",
+    "worker": "file:../worker"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
@@ -41,7 +44,6 @@
     "@types/supertest": "^6.0.2",
     "concurrently": "^9.1.2",
     "nodemon": "^3.1.9",
-    "rimraf": "^6.0.1",
     "supertest": "^7.0.0",
     "typescript": "^5.7.3",
     "vitest": "^3.0.7"
