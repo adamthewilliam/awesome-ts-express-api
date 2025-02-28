@@ -1,4 +1,4 @@
-import { Service } from 'typedi';
+import {Inject, Service} from 'typedi';
 import { Repository } from 'typeorm';
 import { User } from '../entities/User.js';
 import { PaginationDto } from '../dtos/PaginationDto.js';
@@ -17,6 +17,7 @@ interface CursorData {
 @Service()
 export class UserRepository {
     constructor(
+        @Inject()
         private baseRepository: Repository<User>,
     ) {}
 

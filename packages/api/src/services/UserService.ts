@@ -1,14 +1,17 @@
-import { Service } from 'typedi';
+import {Inject, Service} from 'typedi';
 import { User } from '../entities/User.js';
 import { CreateUserDto } from '../dtos/CreateUserDto.js';
 import { NotFoundError } from 'routing-controllers';
-import {type PaginationDto} from "../dtos/PaginationDto.js";
-import type {UserRepository} from "../repositories/UserRepository.js";
+import { type PaginationDto } from "../dtos/PaginationDto.js";
+import { UserRepository } from "../repositories/UserRepository.js";
 import {hashPassword} from "../utils/crypto.js";
 
 @Service()
 export class UserService {
-    private userRepository!: UserRepository
+    constructor(
+        @Inject()
+        private userRepository: UserRepository
+    ) {}
 
     async findAll(pagingOptions: PaginationDto) {
         return this.userRepository.findWithPagination(pagingOptions);

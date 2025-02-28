@@ -18,6 +18,5 @@ export const AppDataSource = new DataSource({
 });
 
 Container.set(UserRepository, new UserRepository(
-    AppDataSource.getRepository(User),
-    AppDataSource.manager
+    AppDataSource.getRepository(User)
 ));
