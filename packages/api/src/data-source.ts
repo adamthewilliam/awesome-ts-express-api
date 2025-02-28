@@ -1,4 +1,7 @@
 import { DataSource } from "typeorm";
+import {UserRepository} from "./repositories/UserRepository.js";
+import {Container} from "typedi";
+import {User} from "./entities/User.js";
 
 export const AppDataSource = new DataSource({
     type: "postgres",
@@ -7,9 +10,14 @@ export const AppDataSource = new DataSource({
     username: process.env.DB_USERNAME || "postgres",
     password: process.env.DB_PASSWORD || "postgres",
     database: process.env.DB_DATABASE || "app_db",
-    synchronize: process.env.NODE_ENV !== "production", // Auto-create schema in development
+    synchronize: process.env.NODE_ENV !== "production",
     logging: process.env.NODE_ENV !== "production",
-    entities: ["src/entities/**/*.ts"], // Path to your entity files
+    entities: ["src/entities/**/*.ts"],
     migrations: ["src/migrations/**/*.ts"],
     subscribers: ["src/subscribers/**/*.ts"],
 });
+
+Container.set(UserRepository, new UserRepository(
+    AppDataSource.getRepository(User),
+    AppDataSource.manager
+));

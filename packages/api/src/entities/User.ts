@@ -11,6 +11,15 @@ export class User {
     @Column({ unique: true })
     email!: string;
 
+    @Column()
+    password!: string;
+
+    @Column()
+    age!: number;
+
+    @Column()
+    isActive: boolean = false;
+
     @CreateDateColumn()
     createdAt!: Date;
 

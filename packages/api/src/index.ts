@@ -17,7 +17,12 @@ async function bootstrap() {
         useExpressServer(app, {
             controllers: ["src/controllers/**/*.ts"],
             middlewares: ["src/middlewares/**/*.ts"],
-            validation: true,
+            validation: {
+                whitelist: true,
+                forbidNonWhitelisted: true,
+                forbidUnknownValues: true,
+                validationError: { target: false, value: false }
+            },
 
             authorizationChecker: async (action: Action, roles: string[] = []) => {
                 // If @Authorized(false) is used, allow access without checking

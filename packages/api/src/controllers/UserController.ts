@@ -1,23 +1,22 @@
-import { JsonController, Get, Post, Body, Param, Authorized } from 'routing-controllers';
+import {JsonController, Get, Post, Body, Param, QueryParams} from 'routing-controllers';
 import { Inject } from 'typedi';
-import { UserService } from '../services/UserService.ts';
-import { User } from '../entities/User.ts';
-import { CreateUserDto } from '../dtos/CreateUserDto';
+import { UserService } from '../services/UserService.js';
+import { User } from '../entities/User.js';
+import { CreateUserDto } from '../dtos/CreateUserDto.js';
+import type {PaginationDto} from "../dtos/PaginationDto.js";
 
 @JsonController('/users')
 export class UserController {
     @Inject()
-    private userService: UserService;
+    private userService!: UserService;
 
     @Get()
-    @Authorized()
-    async getAllUsers(): Promise<User[]> {
-        return this.userService.findAll();
+    getUsers(@QueryParams() pagingOptions: PaginationDto) {
+        return this.userService.findAll(pagingOptions);
     }
 
     @Get('/:id')
-    @Authorized()
-    async getOneUser(@Param('id') id: string): Promise<User> {
+    async getUser(@Param('id') id: number): Promise<User> {
         return this.userService.findOne(id);
     }
 
