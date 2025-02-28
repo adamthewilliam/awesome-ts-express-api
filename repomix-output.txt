@@ -1,0 +1,1300 @@
+This file is a merged representation of a subset of the codebase, containing files not matching ignore patterns, combined into a single document by Repomix.
+
+================================================================
+File Summary
+================================================================
+
+Purpose:
+--------
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+
+File Format:
+------------
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Multiple file entries, each consisting of:
+  a. A separator line (================)
+  b. The file path (File: path/to/file)
+  c. Another separator line
+  d. The full contents of the file
+  e. A blank line
+
+Usage Guidelines:
+-----------------
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+
+Notes:
+------
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching these patterns are excluded: ./node_modules package-lock.json
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+
+Additional Info:
+----------------
+
+================================================================
+Directory Structure
+================================================================
+.github/
+  workflows/
+    ci.yml
+    deploy.yml
+packages/
+  api/
+    src/
+      controllers/
+        UserController.ts
+      domain/
+        UnauthorizedError.ts
+      dtos/
+        CreateUserDto.ts
+        PaginationDto.ts
+      entities/
+        User.ts
+      middlewares/
+        AuthMiddleware.ts
+        ErrorHandlerMiddleware.ts
+      repositories/
+        UserRepository.ts
+      services/
+        UserService.ts
+      utils/
+        crypto.ts
+      data-source.ts
+      index.ts
+    biome.json
+    Dockerfile
+    package.json
+    tsconfig.json
+  worker/
+    src/
+      worker-service.js
+      worker-service.ts
+    Dockerfile
+    package.json
+    tsconfig.json
+.gitignore
+docker-compose.yml
+package.json
+README.md
+
+================================================================
+Files
+================================================================
+
+================
+File: .github/workflows/ci.yml
+================
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '23.7.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+  test:
+    needs: lint-and-format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '23.7.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Check test coverage
+        run: npm run test:coverage
+
+  # Need to refactor to build a docker image and then push to a private container registry like GitLab
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '23.7.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+================
+File: .github/workflows/deploy.yml
+================
+# Need to research the best option for hosting a Node.js express API
+
+================
+File: packages/api/src/controllers/UserController.ts
+================
+import {JsonController, Get, Post, Body, Param, QueryParams} from 'routing-controllers';
+import { Inject } from 'typedi';
+import { UserService } from '../services/UserService.js';
+import { User } from '../entities/User.js';
+import { CreateUserDto } from '../dtos/CreateUserDto.js';
+import type {PaginationDto} from "../dtos/PaginationDto.js";
+
+@JsonController('/users')
+export class UserController {
+    constructor(
+        @Inject()
+        private userService: UserService
+    ) {}
+
+    @Get()
+    getUsers(@QueryParams() pagingOptions: PaginationDto) {
+        return this.userService.findAll(pagingOptions);
+    }
+
+    @Get('/:id')
+    async getUser(@Param('id') id: number): Promise<User> {
+        return this.userService.findOne(id);
+    }
+
+    @Post()
+    async createUser(@Body() userData: CreateUserDto): Promise<User> {
+        return this.userService.create(userData);
+    }
+}
+
+================
+File: packages/api/src/domain/UnauthorizedError.ts
+================
+export class UnauthorizedError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'UnauthorizedError';
+    }
+}
+
+================
+File: packages/api/src/dtos/CreateUserDto.ts
+================
+import { IsEmail, IsNotEmpty, MinLength, IsOptional, IsInt, Min } from 'class-validator';
+
+export class CreateUserDto {
+    @IsNotEmpty({ message: 'Name is required' })
+    name!: string;
+
+    @IsEmail({}, { message: 'Email must be valid' })
+    email!: string;
+
+    @MinLength(6, { message: 'Password must be at least 6 characters' })
+    password!: string;
+
+    @IsOptional()
+    @IsInt()
+    @Min(18)
+    age?: number;
+}
+
+================
+File: packages/api/src/dtos/PaginationDto.ts
+================
+import { IsOptional, IsInt, Min, Max, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
+
+export class PaginationDto {
+    @IsOptional()
+    @IsString()
+    @Transform(({ value }) => value ? decodeURIComponent(value) : undefined)
+    cursor?: string;
+
+    @IsOptional()
+    @IsInt()
+    @Min(1)
+    @Max(100)
+    @Transform(({ value }) => parseInt(value) || 20)
+    limit: number = 20;
+
+    timestamp: Date = new Date();
+}
+
+================
+File: packages/api/src/entities/User.ts
+================
+import {Entity, PrimaryGeneratedColumn, Column, UpdateDateColumn, CreateDateColumn} from 'typeorm';
+
+@Entity()
+export class User {
+    @PrimaryGeneratedColumn()
+    id!: number;
+
+    @Column()
+    name!: string;
+
+    @Column({ unique: true })
+    email!: string;
+
+    @Column()
+    password!: string;
+
+    @Column()
+    age!: number;
+
+    @Column()
+    isActive: boolean = false;
+
+    @CreateDateColumn()
+    createdAt!: Date;
+
+    @UpdateDateColumn()
+    updatedAt!: Date;
+}
+
+================
+File: packages/api/src/middlewares/AuthMiddleware.ts
+================
+import { Middleware } from 'routing-controllers';
+import type { ExpressMiddlewareInterface } from 'routing-controllers';
+import type { Request, Response, NextFunction } from 'express';
+import { Service, Inject } from 'typedi';
+import jwt from 'jsonwebtoken';
+import { UserService } from '../services/UserService.js';
+import { UnauthorizedError } from '../domain/UnauthorizedError.js';
+import { User } from '../entities/User.js';
+
+declare global {
+    namespace Express {
+        interface Request {
+            user?: User;
+        }
+    }
+}
+
+interface JwtPayload {
+    id: number;
+    email: string;
+    iat?: number;
+    exp?: number;
+}
+
+@Middleware({ type: 'before' })
+@Service()
+export class AuthMiddleware implements ExpressMiddlewareInterface {
+    constructor(
+        @Inject()
+        private userService: UserService
+    ) {}
+
+    async use(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const authHeader = req.headers.authorization;
+
+            if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                throw new UnauthorizedError('Authentication token missing or invalid format');
+            }
+
+            const token = authHeader.split(' ')[1];
+
+            if (!token)
+                throw new UnauthorizedError('Invalid token');
+
+            // Verify JWT token
+            const jwtSecret = process.env.JWT_SECRET;
+            if (!jwtSecret) {
+                console.error('JWT_SECRET environment variable is not set');
+                throw new UnauthorizedError('Server authentication configuration error');
+            }
+
+            try {
+                // Verify and decode the token
+                const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
+
+                // Get user from database (important for checking if user still exists or was disabled)
+                const user = await this.userService.findOne(decoded.id);
+
+                if (!user) {
+                    throw new UnauthorizedError('User no longer exists');
+                }
+
+                if (!user.isActive) {
+                    throw new UnauthorizedError('User account is deactivated');
+                }
+
+                // Add user to request object
+                req.user = user;
+                next();
+            } catch (jwtError) {
+                // Handle specific JWT errors
+                if (jwtError instanceof jwt.TokenExpiredError) {
+                    throw new UnauthorizedError('Authentication token expired');
+                } else if (jwtError instanceof jwt.JsonWebTokenError) {
+                    throw new UnauthorizedError('Invalid authentication token');
+                } else {
+                    throw jwtError; // Re-throw other errors
+                }
+            }
+        } catch (error) {
+            // Forward to the error handling middleware
+            if (error instanceof UnauthorizedError) {
+                res.status(401).json({
+                    status: 'error',
+                    message: error.message,
+                    code: 'UNAUTHORIZED'
+                });
+                return;
+            }
+
+            next(error);
+        }
+    }
+}
+
+================
+File: packages/api/src/middlewares/ErrorHandlerMiddleware.ts
+================
+import { Middleware } from 'routing-controllers';
+import type { ExpressErrorMiddlewareInterface } from 'routing-controllers';
+import type { Request, Response, NextFunction } from 'express';
+import { Service } from 'typedi';
+import { ValidationError } from 'class-validator';
+import { QueryFailedError } from 'typeorm';
+
+interface HttpError {
+    httpCode: number;
+    message: string;
+    errors?: any[];
+}
+
+interface ValidationErrors {
+    errors: ValidationError[];
+}
+
+function isHttpError(error: unknown): error is HttpError {
+    return typeof error === 'object' && error !== null && 'httpCode' in error;
+}
+
+function isValidationErrors(error: unknown): error is ValidationErrors {
+    return (
+        typeof error === 'object' &&
+        error !== null &&
+        'errors' in error &&
+        Array.isArray((error as any).errors) &&
+        (error as any).errors.length > 0 &&
+        (error as any).errors[0] instanceof ValidationError
+    );
+}
+
+@Middleware({ type: 'after' })
+@Service()
+export class ErrorHandlerMiddleware implements ExpressErrorMiddlewareInterface {
+    error(error: unknown, _req: Request, res: Response, _next: NextFunction): void {
+        console.error('Error caught by middleware:', error);
+
+        res.setHeader('Content-Type', 'application/json');
+
+        if (isHttpError(error)) {
+            // routing-controllers error
+            res.status(error.httpCode).json({
+                status: 'error',
+                message: error.message,
+                errors: error.errors || []
+            });
+        }
+
+        if (isValidationErrors(error)) {
+            const formattedErrors = error.errors.map(err => ({
+                property: err.property,
+                constraints: err.constraints || {},
+                value: err.value
+            }));
+
+            res.status(400).json({
+                status: 'error',
+                message: 'Validation error',
+                errors: formattedErrors
+            });
+        }
+
+        if (error instanceof QueryFailedError) {
+            const isDev = process.env.NODE_ENV !== 'production';
+
+            res.status(500).json({
+                status: 'error',
+                message: 'Database operation failed',
+                error: isDev ? (error as any).message : undefined,
+                code: isDev ? (error as any).code : undefined
+            });
+        }
+
+        const isDev = process.env.NODE_ENV !== 'production';
+        res.status(500).json({
+            status: 'error',
+            message: 'Internal server error',
+            error: isDev && error instanceof Error ? error.message : undefined
+        });
+    }
+}
+
+================
+File: packages/api/src/repositories/UserRepository.ts
+================
+import {Inject, Service} from 'typedi';
+import { Repository } from 'typeorm';
+import { User } from '../entities/User.js';
+import { PaginationDto } from '../dtos/PaginationDto.js';
+
+interface PaginatedResult<T> {
+    items: T[];
+    nextCursor: string | null;
+    count: number;
+}
+
+interface CursorData {
+    timestamp: Date;
+    id: number;
+}
+
+@Service()
+export class UserRepository {
+    constructor(
+        @Inject()
+        private baseRepository: Repository<User>,
+    ) {}
+
+    async findWithPagination(params: PaginationDto): Promise<PaginatedResult<User>> {
+        const { cursor, limit = 20, timestamp } = params;
+        const effectiveLimit = Math.min(limit, 100);
+
+        const queryBuilder = this.baseRepository.createQueryBuilder('user');
+
+        if (cursor) {
+            try {
+                const cursorData = this.decodeCursor(cursor);
+                queryBuilder.where('user.createdAt < :timestamp OR (user.createdAt = :timestamp AND user.id < :id)', {
+                    timestamp: cursorData.timestamp,
+                    id: cursorData.id
+                });
+            } catch (error) {
+                throw new Error('Invalid cursor format');
+            }
+        } else if (timestamp) {
+            queryBuilder.where('user.createdAt < :timestamp', {
+                timestamp
+            });
+        }
+
+        queryBuilder
+            .orderBy('user.createdAt', 'DESC')
+            .addOrderBy('user.id', 'DESC')
+            .take(effectiveLimit + 1);
+
+        const users = await queryBuilder.getMany();
+
+        const hasMore = users.length > effectiveLimit;
+        if (hasMore) {
+            users.pop();
+        }
+
+        // Generate next cursor
+        let nextCursor = null;
+        if (hasMore && users.length > 0) {
+            const lastItem = users.at(-1);
+            if (lastItem) {
+                nextCursor = this.encodeCursor({
+                    timestamp: lastItem.createdAt,
+                    id: lastItem.id
+                });
+            }
+        }
+
+        return {
+            items: users,
+            nextCursor,
+            count: users.length
+        };
+    }
+
+    async findById(id: string | number): Promise<User | null> {
+        return this.baseRepository.findOneBy({ id: Number(id) });
+    }
+
+    async create(userData: Partial<User>): Promise<User> {
+        const user = this.baseRepository.create(userData);
+        return this.baseRepository.save(user);
+    }
+
+    async update(id: number, userData: Partial<User>): Promise<User | null> {
+        await this.baseRepository.update(id, userData);
+        return this.findById(id);
+    }
+
+    async delete(id: number): Promise<boolean> {
+        const result = await this.baseRepository.delete(id);
+        return result.affected !== 0;
+    }
+
+    private encodeCursor(data: CursorData): string {
+        return Buffer.from(JSON.stringify(data)).toString('base64');
+    }
+
+    private decodeCursor(cursor: string): CursorData {
+        const data = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8'));
+        return {
+            timestamp: new Date(data.timestamp),
+            id: Number(data.id)
+        };
+    }
+}
+
+================
+File: packages/api/src/services/UserService.ts
+================
+import {Inject, Service} from 'typedi';
+import { User } from '../entities/User.js';
+import { CreateUserDto } from '../dtos/CreateUserDto.js';
+import { NotFoundError } from 'routing-controllers';
+import { type PaginationDto } from "../dtos/PaginationDto.js";
+import { UserRepository } from "../repositories/UserRepository.js";
+import {hashPassword} from "../utils/crypto.js";
+
+@Service()
+export class UserService {
+    constructor(
+        @Inject()
+        private userRepository: UserRepository
+    ) {}
+
+    async findAll(pagingOptions: PaginationDto) {
+        return this.userRepository.findWithPagination(pagingOptions);
+    }
+
+    async findOne(id: number): Promise<User> {
+        const user = await this.userRepository.findById(id);
+        if (!user) {
+            throw new NotFoundError(`User with id ${id} not found`);
+        }
+        return user;
+    }
+
+    async create(userData: CreateUserDto): Promise<User> {
+        const hashedPassword = await hashPassword(userData.password);
+
+        return this.userRepository.create({
+            ...userData,
+            password: hashedPassword
+        });
+    }
+}
+
+================
+File: packages/api/src/utils/crypto.ts
+================
+import { scrypt, randomBytes, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+
+const scryptAsync = promisify(scrypt);
+
+export async function hashPassword(password: string): Promise<string> {
+    const salt = randomBytes(16).toString("hex");
+    const derivedKey = await scryptAsync(password, salt, 64) as Buffer;
+    return `${salt}:${derivedKey.toString('hex')}`;
+}
+
+export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+    try {
+        const [salt, storedKeyHex] = hashedPassword.split(":");
+
+        if (!salt || !storedKeyHex) {
+            throw new Error("Invalid hash format");
+        }
+
+        const derivedKey = await scryptAsync(password, salt, 64) as Buffer;
+        const storedKeyBuffer = Buffer.from(storedKeyHex, 'hex');
+
+        // Use constant-time comparison to prevent timing attacks
+        return timingSafeEqual(derivedKey, storedKeyBuffer);
+    } catch (error) {
+        console.error("Password verification error:", error);
+        return false;
+    }
+}
+
+================
+File: packages/api/src/data-source.ts
+================
+import { DataSource } from "typeorm";
+import {UserRepository} from "./repositories/UserRepository.js";
+import {Container} from "typedi";
+import {User} from "./entities/User.js";
+
+export const AppDataSource = new DataSource({
+    type: "postgres",
+    host: process.env.DB_HOST || "localhost",
+    port: parseInt(process.env.DB_PORT || "5432"),
+    username: process.env.DB_USERNAME || "postgres",
+    password: process.env.DB_PASSWORD || "postgres",
+    database: process.env.DB_DATABASE || "app_db",
+    synchronize: process.env.NODE_ENV !== "production",
+    logging: process.env.NODE_ENV !== "production",
+    entities: ["src/entities/**/*.ts"],
+    migrations: ["src/migrations/**/*.ts"],
+    subscribers: ["src/subscribers/**/*.ts"],
+});
+
+Container.set(UserRepository, new UserRepository(
+    AppDataSource.getRepository(User)
+));
+
+================
+File: packages/api/src/index.ts
+================
+import express from "express";
+import {type Action, useContainer, useExpressServer} from "routing-controllers";
+import { Container } from "typedi";
+import { AppDataSource } from "./data-source.js";
+
+useContainer(Container);
+
+async function bootstrap() {
+    const app = express();
+
+    app.use(express.json());
+
+    try {
+        await AppDataSource.initialize();
+        console.log("Database connection established");
+
+        useExpressServer(app, {
+            controllers: ["src/controllers/**/*.ts"],
+            middlewares: ["src/middlewares/**/*.ts"],
+            validation: {
+                whitelist: true,
+                forbidNonWhitelisted: true,
+                forbidUnknownValues: true,
+                validationError: { target: false, value: false }
+            },
+
+            authorizationChecker: async (action: Action, roles: string[] = []) => {
+                // If @Authorized(false) is used, allow access without checking
+                if (roles.length === 1 && roles[0] === 'public') {
+                    return true;
+                }
+
+                // Get user from request (set by AuthMiddleware)
+                const user = action.request.user;
+
+                // No user means not authenticated
+                if (!user) {
+                    return false;
+                }
+
+                // If no specific roles required but user exists, grant access
+                if (roles.length === 0) {
+                    return true;
+                }
+
+                // Check if user has required roles
+                return roles.some(role => user.roles?.includes(role));
+            },
+
+            // Optional: Provide current user to controllers
+            currentUserChecker: (action: Action) => action.request.user
+        });
+
+        const PORT = process.env.PORT || 3000;
+        app.listen(PORT, () => {
+            console.log(`Server running on port ${PORT}`);
+        });
+    } catch (error) {
+        console.error("Error during application startup:", error);
+        process.exit(1);
+    }
+}
+
+bootstrap().catch(console.error);
+
+================
+File: packages/api/biome.json
+================
+{
+	"$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+	"vcs": {
+		"enabled": false,
+		"clientKind": "git",
+		"useIgnoreFile": false
+	},
+	"files": {
+		"ignoreUnknown": false,
+		"ignore": []
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab"
+	},
+	"organizeImports": {
+		"enabled": true
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true
+		}
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double"
+		}
+	}
+}
+
+================
+File: packages/api/Dockerfile
+================
+FROM node:23.7.0-alpine AS builder
+
+# Create app directory
+WORKDIR /app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN npm run build
+
+# Production stage
+FROM node:23.7.0-alpine AS production
+
+# Set NODE_ENV
+ENV NODE_ENV=production
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies only
+RUN npm ci --only=production
+
+# Copy built app from builder stage
+COPY --from=builder /app/dist ./dist
+
+# Expose the port your app runs on
+EXPOSE 3000
+
+# Start the application
+CMD ["node", "dist/index.js"]
+
+================
+File: packages/api/package.json
+================
+{
+  "name": "awesome-ts-express-api",
+  "version": "1.0.0",
+  "description": "An awesome implementation of a Typescript Node.js Express API with BullMQ message queues",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build": "npx rimraf dist && tsc",
+    "start": "node dist/index.js",
+    "start:prod": "NODE_ENV=production node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "lint": "biome lint ./src",
+    "lint:fix": "biome lint --apply ./src",
+    "format": "biome format ./src",
+    "format:check": "biome format --check ./src",
+    "check": "biome check ./src",
+    "check:apply": "biome check --apply ./src",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.13.3",
+    "reflect-metadata": "^0.2.2",
+    "routing-controllers": "^0.11.1",
+    "typedi": "^0.10.0",
+    "typeorm": "^0.3.20",
+    "worker": "file:../worker"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.13.5",
+    "@types/supertest": "^6.0.2",
+    "concurrently": "^9.1.2",
+    "nodemon": "^3.1.9",
+    "supertest": "^7.0.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
+  }
+}
+
+================
+File: packages/api/tsconfig.json
+================
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "es2022",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+
+    "module": "NodeNext",
+    "outDir": "dist",
+
+    "lib": ["es2022"]
+  }
+}
+
+================
+File: packages/worker/src/worker-service.js
+================
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const bullmq_1 = require("bullmq");
+const ioredis_1 = __importDefault(require("ioredis"));
+const getRedisConfig = () => ({
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379'),
+    password: process.env.REDIS_PASSWORD || undefined
+});
+const redisConnection = new ioredis_1.default(getRedisConfig());
+const processJob = async (job) => {
+    try {
+        console.log(`Processing job ${job.id} of type ${job.name}`);
+        switch (job.name) {
+            case 'email-queue':
+                await processEmailJob(job.data);
+                break;
+            case 'image-processing':
+                await processImageJob(job.data);
+                break;
+            default:
+                throw new Error(`Unknown job type: ${job.name}`);
+        }
+    }
+    catch (error) {
+        console.error(`Job ${job.id} failed:`, error);
+        throw error;
+    }
+};
+const processEmailJob = async (data) => {
+    console.log('Sending email:', data);
+    // Use a service like SendGrid, Nodemailer, etc.
+    // Example: await sendEmail(data.to, data.subject, data.body);
+};
+const processImageJob = async (data) => {
+    console.log('Processing image:', data);
+    // Use image processing libraries like Sharp
+    // Example: await processImage(data.imageUrl, data.processingOptions);
+};
+const createWorker = (queueName, processorFn, options) => {
+    const defaultOptions = {
+        connection: redisConnection,
+        concurrency: 5,
+        lockDuration: 30000
+    };
+    const workerOptions = { ...defaultOptions, ...options };
+    const worker = new bullmq_1.Worker(queueName, processorFn, workerOptions);
+    worker.on('failed', (job, err) => {
+        console.error(`Job ${job?.id} failed with error:`, err);
+    });
+    worker.on('completed', (job) => {
+        console.log(`Job ${job?.id} completed successfully`);
+    });
+    return worker;
+};
+const createWorkers = () => {
+    return [
+        createWorker('email-queue', processJob, { concurrency: 5 }),
+        createWorker('image-processing', processJob, {
+            concurrency: 3,
+            lockDuration: 60000 // 1 minute lock for potentially longer jobs
+        })
+    ];
+};
+const initializeWorkers = async () => {
+    try {
+        console.log('Initializing BullMQ Workers...');
+        const workers = createWorkers();
+        console.log('BullMQ Workers initialized successfully');
+        const shutdown = async () => {
+            console.log('Shutting down workers...');
+            try {
+                await Promise.all(workers.map(worker => worker.close()));
+                await redisConnection.quit();
+                process.exit(0);
+            }
+            catch (error) {
+                console.error('Error during shutdown:', error);
+                process.exit(1);
+            }
+        };
+        // Handle process termination signals
+        process.on('SIGTERM', shutdown);
+        process.on('SIGINT', shutdown);
+    }
+    catch (error) {
+        console.error('Failed to initialize workers:', error);
+        process.exit(1);
+    }
+};
+initializeWorkers().catch(console.error);
+
+================
+File: packages/worker/src/worker-service.ts
+================
+import { Worker, Queue, Job, WorkerOptions } from 'bullmq';
+import Redis from 'ioredis';
+
+interface EmailJobData {
+    to: string;
+    subject: string;
+    body: string;
+}
+
+interface ImageProcessingJobData {
+    imageUrl: string;
+    processingOptions?: {
+        resize?: boolean;
+        width?: number;
+        height?: number;
+    };
+}
+
+type JobData = EmailJobData | ImageProcessingJobData;
+
+interface RedisConfig {
+    host: string;
+    port: number;
+    password?: string;
+}
+
+const getRedisConfig = (): RedisConfig => ({
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379'),
+    password: process.env.REDIS_PASSWORD || undefined
+});
+
+const redisConnection = new Redis(getRedisConfig());
+
+const processJob = async (job: Job<JobData>) => {
+    try {
+        console.log(`Processing job ${job.id} of type ${job.name}`);
+
+        switch (job.name) {
+            case 'email-queue':
+                await processEmailJob(job.data as EmailJobData);
+                break;
+            case 'image-processing':
+                await processImageJob(job.data as ImageProcessingJobData);
+                break;
+            default:
+                throw new Error(`Unknown job type: ${job.name}`);
+        }
+    } catch (error) {
+        console.error(`Job ${job.id} failed:`, error);
+        throw error;
+    }
+};
+
+const processEmailJob = async (data: EmailJobData) => {
+    console.log('Sending email:', data);
+    // Use a service like SendGrid, Nodemailer, etc.
+    // Example: await sendEmail(data.to, data.subject, data.body);
+};
+
+const processImageJob = async (data: ImageProcessingJobData) => {
+    console.log('Processing image:', data);
+    // Use image processing libraries like Sharp
+    // Example: await processImage(data.imageUrl, data.processingOptions);
+};
+
+const createWorker = (
+    queueName: string,
+    processorFn: (job: Job<JobData>) => Promise<void>,
+    options?: Partial<WorkerOptions>
+): Worker => {
+    const defaultOptions: WorkerOptions = {
+        connection: redisConnection,
+        concurrency: 5,
+        lockDuration: 30000
+    };
+
+    const workerOptions = { ...defaultOptions, ...options };
+
+    const worker = new Worker(queueName, processorFn, workerOptions);
+
+    worker.on('failed', (job, err) => {
+        console.error(`Job ${job?.id} failed with error:`, err);
+    });
+
+    worker.on('completed', (job) => {
+        console.log(`Job ${job?.id} completed successfully`);
+    });
+
+    return worker;
+};
+
+const createWorkers = (): Worker[] => {
+    return [
+        createWorker('email-queue', processJob, { concurrency: 5 }),
+        createWorker('image-processing', processJob, {
+            concurrency: 3,
+            lockDuration: 60000 // 1 minute lock for potentially longer jobs
+        })
+    ];
+};
+
+const initializeWorkers = async (): Promise<void> => {
+    try {
+        console.log('Initializing BullMQ Workers...');
+        const workers = createWorkers();
+        console.log('BullMQ Workers initialized successfully');
+
+        const shutdown = async () => {
+            console.log('Shutting down workers...');
+            try {
+                await Promise.all(workers.map(worker => worker.close()));
+                await redisConnection.quit();
+                process.exit(0);
+            } catch (error) {
+                console.error('Error during shutdown:', error);
+                process.exit(1);
+            }
+        };
+
+        // Handle process termination signals
+        process.on('SIGTERM', shutdown);
+        process.on('SIGINT', shutdown);
+    } catch (error) {
+        console.error('Failed to initialize workers:', error);
+        process.exit(1);
+    }
+};
+
+initializeWorkers().catch(console.error);
+
+================
+File: packages/worker/Dockerfile
+================
+FROM ubuntu:latest
+LABEL authors="adamferguson"
+
+ENTRYPOINT ["top", "-b"]
+
+================
+File: packages/worker/package.json
+================
+{
+  "name": "worker",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "start": "ts-node src/worker-service.ts",
+    "build": "tsc"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^22.13.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "bullmq": "^5.41.5",
+    "ioredis": "^5.5.0"
+  }
+}
+
+================
+File: packages/worker/tsconfig.json
+================
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+
+================
+File: .gitignore
+================
+node_modules
+dist
+.env
+.DS_Store
+.idea
+
+================
+File: docker-compose.yml
+================
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ts-express-api
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/app_db
+    volumes:
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+
+      - /app/node_modules
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=app_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    restart: always
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@example.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+
+volumes:
+  postgres-data:
+    driver: local
+  pgadmin-data:
+    driver: local
+
+================
+File: package.json
+================
+{
+  "name": "awesome-ts-express-api",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev:api": "npm run dev --workspace=packages/api",
+    "dev:worker": "npm run start --workspace=packages/worker"
+  }
+}
+
+================
+File: README.md
+================
+# awesome-ts-express-api
+An awesome implementation of a Typescript Node.js Express API with BullMQ message queues
+
+**This project is still a work in progress**
+
+
+
+================================================================
+End of Codebase
+================================================================

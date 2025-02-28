@@ -1,9 +1,14 @@
-import express from "express";
+import * as express from "express";
+import * as dotenv from "dotenv";
+import "reflect-metadata";
+
 import {type Action, useContainer, useExpressServer} from "routing-controllers";
 import { Container } from "typedi";
 import { AppDataSource } from "./data-source.js";
 
 useContainer(Container);
+
+dotenv.config();
 
 async function bootstrap() {
     const app = express();
@@ -15,8 +20,8 @@ async function bootstrap() {
         console.log("Database connection established");
 
         useExpressServer(app, {
-            controllers: ["src/controllers/**/*.ts"],
-            middlewares: ["src/middlewares/**/*.ts"],
+            controllers: ["src/controllers/**/*.js"],
+            middlewares: ["src/middlewares/**/*.js"],
             validation: {
                 whitelist: true,
                 forbidNonWhitelisted: true,
@@ -43,11 +48,9 @@ async function bootstrap() {
                     return true;
                 }
 
-                // Check if user has required roles
                 return roles.some(role => user.roles?.includes(role));
             },
 
-            // Optional: Provide current user to controllers
             currentUserChecker: (action: Action) => action.request.user
         });
 
@@ -60,5 +63,18 @@ async function bootstrap() {
         process.exit(1);
     }
 }
+
+process.on("SIGTERM", async () => {
+    console.log("SIGTERM signal received. Closing database connection and exiting...");
+    try {
+        if (AppDataSource.isInitialized) {
+            await AppDataSource.destroy();
+        }
+        process.exit(0);
+    } catch (error) {
+        console.error("Error during shutdown:", error);
+        process.exit(1);
+    }
+});
 
 bootstrap().catch(console.error);

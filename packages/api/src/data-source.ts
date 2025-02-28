@@ -1,9 +1,9 @@
-import { DataSource } from "typeorm";
-import {UserRepository} from "./repositories/UserRepository.js";
+import {DataSource, DataSourceOptions} from "typeorm"
 import {Container} from "typedi";
-import {User} from "./entities/User.js";
+import {UserRepository} from "./repositories/UserRepository";
+import {User} from "./entity/User";
 
-export const AppDataSource = new DataSource({
+const baseConfig: DataSourceOptions = {
     type: "postgres",
     host: process.env.DB_HOST || "localhost",
     port: parseInt(process.env.DB_PORT || "5432"),
@@ -12,11 +12,11 @@ export const AppDataSource = new DataSource({
     database: process.env.DB_DATABASE || "app_db",
     synchronize: process.env.NODE_ENV !== "production",
     logging: process.env.NODE_ENV !== "production",
-    entities: ["src/entities/**/*.ts"],
-    migrations: ["src/migrations/**/*.ts"],
-    subscribers: ["src/subscribers/**/*.ts"],
-});
+    entities: [User],
+    migrations: [__dirname + "/migration/*.ts"],
+}
 
-Container.set(UserRepository, new UserRepository(
-    AppDataSource.getRepository(User)
-));
+export const AppDataSource = new DataSource(baseConfig);
+
+Container.set("DATA_SOURCE", AppDataSource);
+Container.set("USER_REPOSITORY", AppDataSource.getRepository(User));
