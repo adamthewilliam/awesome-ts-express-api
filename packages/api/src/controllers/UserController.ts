@@ -7,8 +7,10 @@ import type {PaginationDto} from "../dtos/PaginationDto.js";
 
 @JsonController('/users')
 export class UserController {
-    @Inject()
-    private userService!: UserService;
+    constructor(
+        @Inject()
+        private userService: UserService
+    ) {}
 
     @Get()
     getUsers(@QueryParams() pagingOptions: PaginationDto) {
