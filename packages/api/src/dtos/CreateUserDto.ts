@@ -14,4 +14,8 @@ export class CreateUserDto {
     @IsInt()
     @Min(18)
     age?: number;
+
+    isActive?: boolean = true;
+
+    updatedAt?: Date;
 }

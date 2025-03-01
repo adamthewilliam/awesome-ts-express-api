@@ -1,5 +1,5 @@
 import {Inject, Service} from 'typedi';
-import { User } from '../entities/User.js';
+import { User } from '../entity/User.js';
 import { CreateUserDto } from '../dtos/CreateUserDto.js';
 import { NotFoundError } from 'routing-controllers';
 import { type PaginationDto } from "../dtos/PaginationDto.js";
@@ -17,7 +17,7 @@ export class UserService {
         return this.userRepository.findWithPagination(pagingOptions);
     }
 
-    async findOne(id: number): Promise<User> {
+    async findOne(id: string): Promise<User> {
         const user = await this.userRepository.findById(id);
         if (!user) {
             throw new NotFoundError(`User with id ${id} not found`);

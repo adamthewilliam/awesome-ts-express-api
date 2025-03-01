@@ -1,7 +1,7 @@
 import {JsonController, Get, Post, Body, Param, QueryParams} from 'routing-controllers';
 import { Inject } from 'typedi';
 import { UserService } from '../services/UserService.js';
-import { User } from '../entities/User.js';
+import { User } from '../entity/User.js';
 import { CreateUserDto } from '../dtos/CreateUserDto.js';
 import type {PaginationDto} from "../dtos/PaginationDto.js";
 
@@ -18,7 +18,7 @@ export class UserController {
     }
 
     @Get('/:id')
-    async getUser(@Param('id') id: number): Promise<User> {
+    async getUser(@Param('id') id: string): Promise<User> {
         return this.userService.findOne(id);
     }
 

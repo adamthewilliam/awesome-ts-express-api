@@ -2,10 +2,10 @@ import { Middleware } from 'routing-controllers';
 import type { ExpressMiddlewareInterface } from 'routing-controllers';
 import type { Request, Response, NextFunction } from 'express';
 import { Service, Inject } from 'typedi';
-import jwt from 'jsonwebtoken';
+import * as jwt from "jsonwebtoken";
 import { UserService } from '../services/UserService.js';
 import { UnauthorizedError } from '../domain/UnauthorizedError.js';
-import { User } from '../entities/User.js';
+import { User } from '../entity/User.js';
 
 declare global {
     namespace Express {
@@ -16,7 +16,7 @@ declare global {
 }
 
 interface JwtPayload {
-    id: number;
+    id: string;
     email: string;
     iat?: number;
     exp?: number;

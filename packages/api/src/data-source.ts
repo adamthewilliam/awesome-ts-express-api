@@ -1,6 +1,5 @@
 import {DataSource, DataSourceOptions} from "typeorm"
 import {Container} from "typedi";
-import {UserRepository} from "./repositories/UserRepository";
 import {User} from "./entity/User";
 
 const baseConfig: DataSourceOptions = {

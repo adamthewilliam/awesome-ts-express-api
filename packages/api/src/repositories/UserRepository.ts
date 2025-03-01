@@ -1,6 +1,6 @@
 import {Inject, Service} from 'typedi';
 import { Repository } from 'typeorm';
-import { User } from '../entities/User.js';
+import { User } from '../entity/User.js';
 import { PaginationDto } from '../dtos/PaginationDto.js';
 
 interface PaginatedResult<T> {
@@ -11,7 +11,7 @@ interface PaginatedResult<T> {
 
 interface CursorData {
     timestamp: Date;
-    id: number;
+    id: string;
 }
 
 @Service()
@@ -55,7 +55,6 @@ export class UserRepository {
             users.pop();
         }
 
-        // Generate next cursor
         let nextCursor = null;
         if (hasMore && users.length > 0) {
             const lastItem = users.at(-1);
@@ -74,8 +73,8 @@ export class UserRepository {
         };
     }
 
-    async findById(id: string | number): Promise<User | null> {
-        return this.baseRepository.findOneBy({ id: Number(id) });
+    async findById(id: string): Promise<User | null> {
+        return this.baseRepository.findOneBy({ id: id });
     }
 
     async create(userData: Partial<User>): Promise<User> {
@@ -83,7 +82,7 @@ export class UserRepository {
         return this.baseRepository.save(user);
     }
 
-    async update(id: number, userData: Partial<User>): Promise<User | null> {
+    async update(id: string, userData: Partial<User>): Promise<User | null> {
         await this.baseRepository.update(id, userData);
         return this.findById(id);
     }
@@ -101,7 +100,7 @@ export class UserRepository {
         const data = JSON.parse(Buffer.from(cursor, 'base64').toString('utf-8'));
         return {
             timestamp: new Date(data.timestamp),
-            id: Number(data.id)
+            id: data.id
         };
     }
 }
